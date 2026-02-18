@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Athleten Check-In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ══════════════════════════════════════
+       CONFIGURATION — hier anpassen!
+    ══════════════════════════════════════ */
+    /*
+      Alle Werte die du ändern musst:
+        BASEROW_TOKEN   → dein Baserow API-Token
+        TABLE_ATHLETES  → Baserow Tabellen-ID "Athleten"
+        TABLE_CHECKINS  → Baserow Tabellen-ID "Anwesenheit"
+      Diese Werte werden unten im <script>-Block gesetzt.
+    */
+
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #13131c;
+      --surface2:  #1c1c2a;
+      --border:    #2a2a3e;
+      --accent:    #e8ff47;
+      --accent2:   #47d4ff;
+      --danger:    #ff4747;
+      --text:      #f0f0f8;
+      --muted:     #6b6b8a;
+      --radius:    14px;
+      --font-head: 'Bebas Neue', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 48px;
+      background:
+        radial-gradient(ellipse 80% 40% at 50% -10%, rgba(232,255,71,.07) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 110% 80%, rgba(71,212,255,.05) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    /* ── HEADER ── */
+    header {
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      padding: 32px 0 24px;
+      animation: fadeDown .5s ease both;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      background: var(--accent);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .logo-icon svg { width: 28px; height: 28px; }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 8vw, 3.2rem);
+      letter-spacing: .06em;
+      line-height: 1;
+      color: var(--text);
+    }
+    h1 span { color: var(--accent); }
+
+    .header-sub {
+      margin-top: 8px;
+      font-size: .85rem;
+      color: var(--muted);
+      letter-spacing: .05em;
+    }
+
+    /* ── CARD ── */
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      margin-bottom: 16px;
+      animation: fadeUp .45s ease both;
+    }
+    .card + .card { animation-delay: .06s; }
+
+    .card-label {
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── KURS DISPLAY ── */
+    .kurs-display {
+      background: linear-gradient(135deg, var(--surface2) 0%, rgba(232,255,71,.05) 100%);
+      border: 1px solid rgba(232,255,71,.2);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .kurs-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .kurs-dot.inactive {
+      background: var(--muted);
+      box-shadow: none;
+      animation: none;
+    }
+    .kurs-name {
+      font-family: var(--font-head);
+      font-size: 1.4rem;
+      letter-spacing: .04em;
+      line-height: 1.1;
+    }
+    .kurs-time {
+      font-size: .8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .kurs-badge {
+      margin-left: auto;
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(232,255,71,.12);
+      color: var(--accent);
+      border: 1px solid rgba(232,255,71,.3);
+      flex-shrink: 0;
+    }
+    .kurs-badge.none {
+      background: rgba(107,107,138,.1);
+      color: var(--muted);
+      border-color: var(--border);
+    }
+
+    /* ── MANUAL SELECTOR ── */
+    details {
+      margin-top: 14px;
+    }
+    summary {
+      cursor: pointer;
+      font-size: .8rem;
+      color: var(--accent2);
+      font-weight: 500;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary .chevron { transition: transform .2s; font-size: .7rem; }
+    details[open] summary .chevron { transform: rotate(90deg); }
+
+    .kurs-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .kurs-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .15s, background .15s, transform .1s;
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+    .kurs-btn:hover {
+      border-color: rgba(232,255,71,.4);
+      background: rgba(232,255,71,.04);
+    }
+    .kurs-btn.selected {
+      border-color: var(--accent);
+      background: rgba(232,255,71,.08);
+    }
+    .kurs-btn:active { transform: scale(.97); }
+    .kurs-btn .kbday {
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .kurs-btn .kbname {
+      font-size: .9rem;
+      font-weight: 500;
+    }
+    .kurs-btn .kbtime {
+      font-size: .75rem;
+      color: var(--muted);
+    }
+
+    /* ── ATHLETE SEARCH ── */
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 14px 14px 42px;
+      font-family: var(--font-body);
+      font-size: .95rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus { border-color: var(--accent2); }
+
+    .athlete-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .athlete-list::-webkit-scrollbar { width: 4px; }
+    .athlete-list::-webkit-scrollbar-track { background: transparent; }
+    .athlete-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .athlete-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .1s;
+    }
+    .athlete-item:hover {
+      border-color: rgba(71,212,255,.4);
+      background: rgba(71,212,255,.04);
+    }
+    .athlete-item.selected {
+      border-color: var(--accent2);
+      background: rgba(71,212,255,.08);
+    }
+    .athlete-item:active { transform: scale(.98); }
+    .athlete-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: .85rem;
+      flex-shrink: 0;
+      color: var(--accent2);
+      border: 1px solid rgba(71,212,255,.2);
+    }
+    .athlete-name { font-size: .9rem; font-weight: 500; }
+    .athlete-check { margin-left: auto; color: var(--accent2); opacity: 0; transition: opacity .15s; }
+    .athlete-item.selected .athlete-check { opacity: 1; }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .btn-submit {
+      width: 100%;
+      max-width: 480px;
+      padding: 18px;
+      background: var(--accent);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 16px;
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      letter-spacing: .12em;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s, filter .15s;
+      animation: fadeUp .45s .12s ease both;
+      box-shadow: 0 4px 32px rgba(232,255,71,.25);
+    }
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(232,255,71,.4);
+    }
+    .btn-submit:active { transform: scale(.98); }
+    .btn-submit:disabled {
+      filter: saturate(0);
+      opacity: .4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ── SUCCESS / ERROR OVERLAYS ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,15,.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s;
+      backdrop-filter: blur(8px);
+      padding: 32px;
+      text-align: center;
+    }
+    .overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .overlay-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      animation: bounceIn .4s ease both;
+    }
+    .overlay-title {
+      font-family: var(--font-head);
+      font-size: 2.4rem;
+      letter-spacing: .06em;
+      margin-bottom: 10px;
+    }
+    .overlay-sub {
+      color: var(--muted);
+      font-size: .9rem;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+    .overlay-btn {
+      margin-top: 28px;
+      padding: 14px 32px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .overlay-btn:hover { border-color: var(--accent); }
+
+    /* ── LOADING ── */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 24px auto;
+    }
+
+    /* ── CLOCK ── */
+    .clock-bar {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      margin-bottom: 20px;
+      font-size: .75rem;
+      color: var(--muted);
+      animation: fadeDown .5s .05s ease both;
+    }
+    .clock-time { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--text); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(16px);  } to { opacity:1; transform:none; } }
+    @keyframes pulse    { 0%,100%{box-shadow:0 0 8px var(--accent);} 50%{box-shadow:0 0 20px var(--accent);} }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes bounceIn { 0%{transform:scale(.3);opacity:0;} 70%{transform:scale(1.1);} 100%{transform:scale(1);opacity:1;} }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     SUCCESS OVERLAY
+═══════════════════════════════════════════════ -->
+<div class="overlay" id="overlaySuccess">
+  <div class="overlay-icon">✅</div>
+  <div class="overlay-title" id="successTitle">EINGECHECKT!</div>
+  <div class="overlay-sub" id="successSub"></div>
+  <button class="overlay-btn" onclick="resetForm()">Weiter →</button>
+</div>
+
+<!-- ERROR OVERLAY -->
+<div class="overlay" id="overlayError">
+  <div class="overlay-icon">⚠️</div>
+  <div class="overlay-title">FEHLER</div>
+  <div class="overlay-sub" id="errorMsg"></div>
+  <button class="overlay-btn" onclick="hideOverlays()">Zurück</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN UI
+═══════════════════════════════════════════════ -->
+<header>
+  <div class="logo-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#0a0a0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+  </div>
+  <h1>ATHLETEN <span>CHECK-IN</span></h1>
+  <p class="header-sub">Scanne · Wähle · Check ein</p>
+</header>
+
+<div class="clock-bar">
+  <span id="dateDisplay">—</span>
+  <span class="clock-time" id="clockDisplay">—</span>
+</div>
+
+<!-- KURS CARD -->
+<div class="card">
+  <div class="card-label">Aktueller Kurs</div>
+
+  <div class="kurs-display">
+    <span class="kurs-dot" id="kursDot"></span>
+    <div>
+      <div class="kurs-name" id="kursName">Kein aktiver Kurs</div>
+      <div class="kurs-time" id="kursTime">Nächster Kurs wird angezeigt</div>
+    </div>
+    <span class="kurs-badge none" id="kursBadge">INAKTIV</span>
+  </div>
+
+  <details id="manualDetails">
+    <summary>
+      <span>▶</span><span class="chevron">›</span>
+      Kurs manuell auswählen
+    </summary>
+    <div class="kurs-grid" id="kursGrid">
+      <!-- filled by JS -->
+    </div>
+  </details>
+</div>
+
+<!-- ATHLETE CARD -->
+<div class="card">
+  <div class="card-label">Athlet wählen</div>
+
+  <div class="search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Name suchen…" autocomplete="off" spellcheck="false" />
+  </div>
+
+  <div class="athlete-list" id="athleteList">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- SUBMIT -->
+<button class="btn-submit" id="btnSubmit" disabled onclick="submitCheckin()">
+  CHECK-IN BESTÄTIGEN
+</button>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPT
+═══════════════════════════════════════════════ -->
+<script>
+// ╔══════════════════════════════════════════════╗
+// ║           ⚙  KONFIGURATION  ⚙               ║
+// ║  Hier deine Baserow-Werte eintragen:         ║
+// ╚══════════════════════════════════════════════╝
+const CONFIG = {
+  BASEROW_URL:    'https://api.baserow.io',           // Nicht ändern
+  API_TOKEN:      'dLCtLqRkMjgTy3sPp7XOp31OUfozt1PK',              // ← Ersetzen!
+  TABLE_ATHLETES: '846366',       // ← Ersetzen!
+  TABLE_CHECKINS: '846386',    // ← Ersetzen!
+};
+
+// ── Kursdefinitionen ─────────────────────────────
+// day: 1=Mo, 2=Di, 3=Mi, 4=Do, 5=Fr (getDay() liefert 0=So..6=Sa)
+const KURSE = [
+  { id: 'mo-17', tag: 'Montag',     day: 1, start: '17:00', end: '19:00', label: 'Mo 17–19 Uhr' },
+  { id: 'mo-19', tag: 'Montag',     day: 1, start: '19:00', end: '21:00', label: 'Mo 19–21 Uhr' },
+  { id: 'mi-17', tag: 'Mittwoch',   day: 3, start: '17:00', end: '19:00', label: 'Mi 17–19 Uhr' },
+  { id: 'mi-19', tag: 'Mittwoch',   day: 3, start: '19:00', end: '21:00', label: 'Mi 19–21 Uhr' },
+  { id: 'fr-16', tag: 'Freitag',    day: 5, start: '16:30', end: '18:30', label: 'Fr 16:30–18:30 Uhr' },
+];
+
+// How many minutes BEFORE start is the check-in window open?
+const CHECKIN_OPEN_BEFORE_MIN = 20;
+
+// ─────────────────────────────────────────────────
+let allAthletes    = [];
+let selectedAthlete = null;
+let selectedKurs    = null;
+
+// ── Clock ─────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+  document.getElementById('dateDisplay').textContent =
+    days[now.getDay()] + ', ' +
+    now.toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' });
+  document.getElementById('clockDisplay').textContent =
+    now.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Kurs-Logik ────────────────────────────────────
+function parseTime(str) {
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function getCurrentKurs() {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  return KURSE.find(k => {
+    if (k.day !== dayOfWeek) return false;
+    const start = parseTime(k.start) - CHECKIN_OPEN_BEFORE_MIN;
+    const end   = parseTime(k.end);
+    return nowMin >= start && nowMin < end;
+  }) || null;
+}
+
+function getNextKurs() {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  // same day, future
+  const sameDay = KURSE.filter(k => k.day === dayOfWeek && parseTime(k.start) > nowMin);
+  if (sameDay.length) return sameDay[0];
+
+  // next days (cycle through week)
+  for (let offset = 1; offset <= 7; offset++) {
+    const d = (dayOfWeek + offset) % 7;
+    const found = KURSE.find(k => k.day === d);
+    if (found) return found;
+  }
+  return null;
+}
+
+function setActiveKurs(kurs) {
+  selectedKurs = kurs;
+  const dot   = document.getElementById('kursDot');
+  const name  = document.getElementById('kursName');
+  const time  = document.getElementById('kursTime');
+  const badge = document.getElementById('kursBadge');
+
+  if (kurs) {
+    dot.classList.remove('inactive');
+    name.textContent = kurs.tag;
+    time.textContent = kurs.start + ' – ' + kurs.end + ' Uhr';
+    badge.textContent = 'AKTIV';
+    badge.classList.remove('none');
+  } else {
+    dot.classList.add('inactive');
+    const next = getNextKurs();
+    name.textContent = 'Kein aktiver Kurs';
+    time.textContent = next ? 'Nächster: ' + next.label : '—';
+    badge.textContent = 'INAKTIV';
+    badge.classList.add('none');
+  }
+
+  // highlight correct button in grid
+  document.querySelectorAll('.kurs-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.id === (kurs?.id ?? ''));
+  });
+
+  updateSubmitBtn();
+}
+
+// ── Build Kurs Grid ───────────────────────────────
+function buildKursGrid() {
+  const grid = document.getElementById('kursGrid');
+  grid.innerHTML = KURSE.map(k => `
+    <button class="kurs-btn" data-id="${k.id}" onclick="manualSelectKurs('${k.id}')">
+      <div class="kbday">${k.tag}</div>
+      <div class="kbname">${k.id.includes('fr') ? 'Kurs' : 'Kurs'}</div>
+      <div class="kbtime">${k.start} – ${k.end}</div>
+    </button>
+  `).join('');
+}
+
+function manualSelectKurs(id) {
+  const kurs = KURSE.find(k => k.id === id);
+  setActiveKurs(kurs);
+  // update dot to show it's manually overridden
+  document.getElementById('kursBadge').textContent = 'MANUELL';
+  document.getElementById('kursBadge').classList.remove('none');
+  // close details
+  document.getElementById('manualDetails').removeAttribute('open');
+}
+
+// ── Baserow API ───────────────────────────────────
+async function fetchAthletes() {
+  try {
+    let url = `${CONFIG.BASEROW_URL}/api/database/rows/table/${CONFIG.TABLE_ATHLETES}/?user_field_names=true&size=200`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Token ${CONFIG.API_TOKEN}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    return data.results;
+  } catch (e) {
+    console.error(e);
+    document.getElementById('athleteList').innerHTML =
+      `<div class="empty-state">⚠️ Athleten konnten nicht geladen werden.<br><small>${e.message}</small></div>`;
+    return [];
+  }
+}
+
+async function postCheckin(athleteName, kursLabel) {
+  const now = new Date();
+  const body = {
+    Athlet:   athleteName,
+    Kurs:     kursLabel,
+    Datum:    now.toISOString().split('T')[0],
+    Uhrzeit:  now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
+    Timestamp: now.toISOString(),
+  };
+  const res = await fetch(
+    `${CONFIG.BASEROW_URL}/api/database/rows/table/${CONFIG.TABLE_CHECKINS}/?user_field_names=true`,
+    {
+      method:  'POST',
+      headers: {
+        Authorization:  `Token ${CONFIG.API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ── Athlete List UI ───────────────────────────────
+function renderAthletes(list) {
+  const container = document.getElementById('athleteList');
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state">Keine Athleten gefunden</div>';
+    return;
+  }
+  container.innerHTML = list.map(a => {
+    const name = a.Name || a.name || Object.values(a).find(v => typeof v === 'string' && v.trim()) || '?';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+    return `
+      <div class="athlete-item" data-name="${name}" onclick="selectAthlete('${name.replace(/'/g,"\\'")}', this)">
+        <div class="athlete-avatar">${initials}</div>
+        <span class="athlete-name">${name}</span>
+        <svg class="athlete-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>`;
+  }).join('');
+}
+
+function selectAthlete(name, el) {
+  selectedAthlete = name;
+  document.querySelectorAll('.athlete-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  updateSubmitBtn();
+  // scroll to keep visible
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function updateSubmitBtn() {
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = !(selectedAthlete && selectedKurs);
+}
+
+// ── Search ────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtered = allAthletes.filter(a => {
+    const name = a.Name || a.name || '';
+    return name.toLowerCase().includes(q);
+  });
+  renderAthletes(filtered);
+});
+
+// ── Submit ────────────────────────────────────────
+async function submitCheckin() {
+  if (!selectedAthlete || !selectedKurs) return;
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = 'WIRD GESPEICHERT…';
+
+  try {
+    await postCheckin(selectedAthlete, selectedKurs.label);
+    document.getElementById('successTitle').textContent = 'EINGECHECKT!';
+    document.getElementById('successSub').textContent =
+      `${selectedAthlete} wurde erfolgreich für den Kurs\n"${selectedKurs.label}" eingetragen.`;
+    document.getElementById('overlaySuccess').classList.add('show');
+  } catch (e) {
+    document.getElementById('errorMsg').textContent = e.message;
+    document.getElementById('overlayError').classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'CHECK-IN BESTÄTIGEN';
+  }
+}
+
+function hideOverlays() {
+  document.querySelectorAll('.overlay').forEach(o => o.classList.remove('show'));
+}
+
+function resetForm() {
+  hideOverlays();
+  selectedAthlete = null;
+  document.querySelectorAll('.athlete-item').forEach(i => i.classList.remove('selected'));
+  document.getElementById('searchInput').value = '';
+  renderAthletes(allAthletes);
+  document.getElementById('btnSubmit').textContent = 'CHECK-IN BESTÄTIGEN';
+  updateSubmitBtn();
+  // re-detect kurs
+  setActiveKurs(getCurrentKurs());
+}
+
+// ── INIT ──────────────────────────────────────────
+async function init() {
+  buildKursGrid();
+  setActiveKurs(getCurrentKurs());
+
+  allAthletes = await fetchAthletes();
+  renderAthletes(allAthletes);
+}
+
+init();
+</script>
+</body>
+</html>
