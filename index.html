@@ -7,16 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
-    /* ══════════════════════════════════════
-       CONFIGURATION — hier anpassen!
-    ══════════════════════════════════════ */
-    /*
-      Alle Werte die du ändern musst:
-        BASEROW_TOKEN   → dein Baserow API-Token
-        TABLE_ATHLETES  → Baserow Tabellen-ID "Athleten"
-        TABLE_CHECKINS  → Baserow Tabellen-ID "Anwesenheit"
-      Diese Werte werden unten im <script>-Block gesetzt.
-    */
+    
 
     :root {
       --bg:        #0a0a0f;
@@ -448,8 +439,8 @@
      SUCCESS OVERLAY
 ═══════════════════════════════════════════════ -->
 <div class="overlay" id="overlaySuccess">
-  <div class="overlay-icon">✅</div>
-  <div class="overlay-title" id="successTitle">EINGECHECKT!</div>
+  <div class="overlay-icon">🥋</div>
+  <div class="overlay-title" id="successTitle">Danke, du bist EINGECHECKT!</div>
   <div class="overlay-sub" id="successSub"></div>
   <button class="overlay-btn" onclick="resetForm()">Weiter →</button>
 </div>
@@ -472,7 +463,7 @@
     </svg>
   </div>
   <h1>ATHLETEN <span>CHECK-IN</span></h1>
-  <p class="header-sub">Scanne · Wähle · Check ein</p>
+  <p class="header-sub"> Logo dich ein</p>
 </header>
 
 <div class="clock-bar">
@@ -535,9 +526,9 @@
 // ╚══════════════════════════════════════════════╝
 const CONFIG = {
   BASEROW_URL:    'https://api.baserow.io',           // Nicht ändern
-  API_TOKEN:      'dLCtLqRkMjgTy3sPp7XOp31OUfozt1PK',              // ← Ersetzen!
-  TABLE_ATHLETES: '846366',       // ← Ersetzen!
-  TABLE_CHECKINS: '846386',    // ← Ersetzen!
+  API_TOKEN:      'dLCtLqRkMjgTy3sPp7XOp31OUfozt1PK',             
+  TABLE_ATHLETES: '846366',       
+  TABLE_CHECKINS: '846386',    
 };
 
 // ── Kursdefinitionen ─────────────────────────────
